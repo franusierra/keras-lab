@@ -7,6 +7,9 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
 from keras import optimizers
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
 
 models = []
 
@@ -48,15 +51,30 @@ trainingData={
     "x_predict" : dataset[-68:,0:8],
     "y_predict" : dataset[-68:,8]
 }
+optimizadoresText=[
+    "SGD",
+    "RMSprop",
+    "ADAM"
+]
 if __name__ == "__main__":
+    data = pd.read_csv('pima-indians-diabetes.csv', header=None, names=['n_emb','conc_gluc','pres_art','piel_tric','2h_ins','imc','pedi_fun','edad','SALIDA'])
+    D=pd.get_dummies(data)
+    normD=(D-D.min())/(D.max()-D.min())
+    normD.head()
+    plt.matshow(normD.corr())
+    plt.xticks(range(len(normD.columns)), normD.columns)
+    plt.yticks(range(len(normD.columns)), normD.columns)
+    plt.colorbar()
+    plt.show(block=False)
+    plt.pause(3)
+   
     generate_models()
-
+    
     for i,model in enumerate(models):
-        model.fit(trainingData["x_fit"], trainingData["y_fit"], epochs=10, batch_size=10, verbose=1)
+        history=model.fit(trainingData["x_fit"], trainingData["y_fit"], epochs=10, batch_size=10, verbose=1 )
 
         _, accuracy = model.evaluate(trainingData["x_evaluate"], trainingData["y_evaluate"])
         print('Accuracy: %.2f' % (accuracy*100))
-
         path="Models/"
         # serialize model to JSON
         model_json = model.to_json()
@@ -80,4 +98,18 @@ if __name__ == "__main__":
 
         for j in range(5):
             print('%s => %d (expected %d)' % (trainingData["x_predict"][j].tolist(), predictions[j], trainingData["y_predict"][j]))
+        print(history.history.keys())
+        acc = history.history['accuracy']
+        loss = history.history['loss']
+        epochs = range(1, len(acc) + 1)
+        plt.close()
+        plt.plot(epochs, acc, 'b', label='Training acc')
+        plt.title(f'Precision de entrenamiento - Optimizador {optimizadoresText[i]}')
+        plt.legend()
+        plt.figure()
+        plt.plot(epochs, loss, 'b', label='Training loss')
+        plt.title(f'Suma de las perdidas - Optimizador {optimizadoresText[i]}')
+        plt.legend()
+        plt.show()
+        plt.pause(4)
 
