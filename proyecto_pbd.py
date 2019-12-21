@@ -10,6 +10,7 @@ from keras import optimizers
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 models = []
 
@@ -43,37 +44,37 @@ def generate_models():
 
 dataset = loadtxt('pima-indians-diabetes.csv', delimiter=',')
 
-trainingData={
-    "x_fit" : dataset[0:500,0:8],
-    "y_fit" : dataset[0:500,8],
-    "x_evaluate" : dataset[500:-68,0:8],
-    "y_evaluate" : dataset[500:-68,8],
-    "x_predict" : dataset[-68:,0:8],
-    "y_predict" : dataset[-68:,8]
-}
+
 optimizadoresText=[
     "SGD",
     "RMSprop",
     "ADAM"
 ]
 if __name__ == "__main__":
+    
     data = pd.read_csv('pima-indians-diabetes.csv', header=None, names=['n_emb','conc_gluc','pres_art','piel_tric','2h_ins','imc','pedi_fun','edad','SALIDA'])
     D=pd.get_dummies(data)
+    train, test = train_test_split(data, test_size=0.2)
+    Xtrain=train.loc[:,'n_emb':'edad']
+    Ytrain=train.loc[:,'SALIDA']
+    Xtest=test.loc[:,'n_emb':'edad']
+    Ytest=test.loc[:,'SALIDA']
+    predictX=Xtest.head(5)
+    predictY=Ytest.head(5)
     normD=(D-D.min())/(D.max()-D.min())
     normD.head()
     plt.matshow(normD.corr())
     plt.xticks(range(len(normD.columns)), normD.columns)
     plt.yticks(range(len(normD.columns)), normD.columns)
     plt.colorbar()
-    plt.show(block=False)
-    plt.pause(3)
-   
+    plt.show()
+    
     generate_models()
     
     for i,model in enumerate(models):
-        history=model.fit(trainingData["x_fit"], trainingData["y_fit"], epochs=10, batch_size=10, verbose=1 )
+        history=model.fit(Xtrain, Ytrain, epochs=150, batch_size=10, verbose=1 )
 
-        _, accuracy = model.evaluate(trainingData["x_evaluate"], trainingData["y_evaluate"])
+        _, accuracy = model.evaluate(Xtest,Ytest)
         print('Accuracy: %.2f' % (accuracy*100))
         path="Models/"
         # serialize model to JSON
@@ -93,23 +94,30 @@ if __name__ == "__main__":
         # load weights into new model
         loaded_model.load_weights(f"{path}model{i}.h5")
         print("Loaded model from disk")
-        
-        predictions = loaded_model.predict_classes(trainingData["x_predict"])
-
-        for j in range(5):
-            print('%s => %d (expected %d)' % (trainingData["x_predict"][j].tolist(), predictions[j], trainingData["y_predict"][j]))
+        predictions = loaded_model.predict(predictX)
+        print('Realizando predicciones')
+        for data,predicted,expected in zip(predictX.iterrows(),predictions,predictY):
+           print('==================================')
+           print('Datos de entrada:')
+           print('{}'.format(list(data)))
+           print('Predicción:')
+           print('{} (expected {})'.format(predicted,expected))
+           print('==================================')
         print(history.history.keys())
         acc = history.history['accuracy']
         loss = history.history['loss']
         epochs = range(1, len(acc) + 1)
-        plt.close()
-        plt.plot(epochs, acc, 'b', label='Training acc')
-        plt.title(f'Precision de entrenamiento - Optimizador {optimizadoresText[i]}')
-        plt.legend()
-        plt.figure()
-        plt.plot(epochs, loss, 'b', label='Training loss')
-        plt.title(f'Suma de las perdidas - Optimizador {optimizadoresText[i]}')
-        plt.legend()
+        fig, axs = plt.subplots(2)
+        fig.tight_layout() 
+        axs[0].plot(epochs, acc, 'b', label='Training acc')
+        axs[0].set_title(f'Precision de entrenamiento - Optimizador {optimizadoresText[i]}')
+        axs[0].legend()
+    
+        axs[1].plot(epochs, loss, 'b', label='Training loss')
+        axs[1].set_title(f'Suma de las perdidas - Optimizador {optimizadoresText[i]}')
+        axs[1].legend()
+    
         plt.show()
-        plt.pause(4)
+    fig.clear()
+    plt.close(fig)
 
